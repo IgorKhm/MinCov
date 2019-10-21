@@ -5,7 +5,7 @@ MinCov is a Python implementation of a decision procedure for the Petri net cove
 
 MinCov does not require any installation. However, [Python 3.7](https://www.python.org/download/releases/2.7/) must be installed with the following additional packages:
 
-* [NumPy](http://www.numpy.org/) ≥1.8.2 (e.g. on Debian-based Linux distributions: `sudo apt-get install python-numpy`),
+* [NumPy](http://www.numpy.org/) ≥1.16.4 (e.g. on Debian-based Linux distributions: `sudo apt-get install python-numpy`),
 * [SciPy](https://www.scipy.org/) ≥0.13.3 (e.g. on Debian-based Linux distributions: `sudo apt-get install python-scipy`),
 * [Z3](https://github.com/Z3Prover/) ≥4.4.0: follow installation instructions for Python bindings.
 
