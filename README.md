@@ -10,7 +10,7 @@ MinCov does not require any installation. However, [Python 3.7](https://www.pyth
 * [Z3](https://github.com/Z3Prover/) ≥4.4.0: follow installation instructions for Python bindings.
 
 ## Usage
-MinCov is executed by runinng the scrip "./benchmarks/run_all_benchmarks" which runs all the benchmarks in the folder "benchmarks" and produses an output ".csv" output summarising the run. 
+MinCov is executed by runinng the script "./benchmarks/run_all_benchmarks" which runs all the benchmarks in the folder "benchmarks" and produses an output ".csv" output summarising the run. 
 
 ## Input file format
 
