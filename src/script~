@@ -1,0 +1,5 @@
+#!/bin/bash
+echo hello
+#python MP-Algorithm/main.py
+
+python3  main.py
