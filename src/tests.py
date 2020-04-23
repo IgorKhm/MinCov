@@ -1,17 +1,7 @@
 """
-Copyright 2019 Igor Khmelnitsky, Alain Finkel, Serge Haddad
+Created on Jul 8, 2019
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+@author: ikhmelnitsky
 """
 import cProfile
 import os
@@ -19,11 +9,9 @@ import unittest
 
 import numpy as np
 
-from cover_tree_with_hash import CovTreeHash
-from cover_tree_with_tests import CovTreeHashTest
+from cover_tree import CovTree
 from load_petri_net_from_file import load_petri_net_from_spec, load_marking_from_mp
 from node_cover_tree import CovNode
-from omega_markings import OmegaMarking
 from omega_transition import OmegaTransition
 from petri_net import PetriNet
 
@@ -54,35 +42,6 @@ class Test(unittest.TestCase):
         self.assertEqual(tran1, tran1)
         self.assertGreaterEqual(tran3, tran2)
         self.assertFalse((tran1 >= tran2) | (tran1 <= tran2))
-
-    def test_markings(self):
-        """
-        Testting basic properties of markings
-        """
-        #       Loading test data
-        mark1 = OmegaMarking(np.array([1, 2, 3, float("inf")]))
-        mark2 = OmegaMarking(np.array([1, float("inf"), 4, float("inf")]))
-        mark3 = OmegaMarking(np.array([1, 2, 4, 5]))
-        tran1 = OmegaTransition(np.array([1, 2, 3, 6, 4]),
-                                np.array([1, 4, 3, -5, 5]))
-        tran2 = OmegaTransition(np.array([1, 2, 3, float("inf")]),
-                                np.array([0, float("inf"), 1, float("inf")]))
-
-        #       Checking equalty and order
-        self.assertNotEqual(mark1, mark2)
-        self.assertEqual(mark1, mark1)
-        self.assertGreaterEqual(mark2, mark1)
-        self.assertFalse((mark1 >= mark3) | (mark3 <= mark1))
-        self.assertGreaterEqual(mark2, mark3)
-
-        #       Checking transition firings
-        with self.assertRaises(Exception):
-            OmegaTransition(mark1.is_fireable(tran1), None)
-        self.assertTrue(mark1.is_fireable(tran2))
-        with self.assertRaises(Exception):
-            OmegaTransition(mark1.fire_transition(tran1), None)
-        mark1.fire_transition(tran2)
-        self.assertEqual(mark1, mark2)
 
     def test_petri_net(self):
         """
@@ -219,7 +178,7 @@ class Test(unittest.TestCase):
         petri.mark_the_petri_net(OmegaMarking(np.array([1, 0, 0, 0, 0, 0, 0])))
 
         # Initializing the tree:
-        cov_tree = CovTreeHash(petri, petri.get_mark())
+        cov_tree = CovTree(petri, petri.get_mark())
 
         anti_chain = cov_tree.generate_cov_tree()
         self.assertEqual(len(anti_chain), 6)
@@ -254,7 +213,7 @@ class Test(unittest.TestCase):
         petri.mark_the_petri_net(OmegaMarking(np.array([1, 0, 0, 0, 0, 0])))
 
         # Initializing the tree:
-        cov_tree = CovTreeHash(petri, petri.get_mark())
+        cov_tree = CovTree(petri, petri.get_mark())
 
         anti_chain = cov_tree.generate_cov_tree(True)
 
@@ -273,7 +232,7 @@ class Test(unittest.TestCase):
 
     def test_mesh_2x2(self):
         petri = load_petri_net_from_spec("benchmarks/mesh2x2.spec")
-        cov = CovTreeHash(petri, petri.get_mark().get_marking())
+        cov = CovTree(petri, petri.get_mark().get_marking())
         cov.check_for_correctness = False
         anti_chain = cov.generate_cov_tree()
         self.assertEqual(len(anti_chain), 256)

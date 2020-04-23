@@ -1,33 +1,24 @@
 """
-Copyright 2019 Igor Khmelnitsky, Alain Finkel, Serge Haddad
+Created on Jul 8, 2019
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+@author: ikhmelnitsky
 """
 
 from copy import deepcopy
 
 import numpy as np
 
-
 from omega_transition import OmegaTransition
 
 
 class CovNode(object):
 
-    def __init__(self, mark: np.array, dim, depth=0, parent=None):
+    def __init__(self, mark: np.array, dim, depth=0, parent=None, num=0):
         """
         Constructor
         """
+        # assert (isinstance(mark, OmegaMarking)), \
+        #     "marking has to be an Omega marking"
         assert (len(mark) == dim), \
             "The dimension of the node and its marking has to be the same"
 
@@ -36,6 +27,8 @@ class CovNode(object):
         self._dim = dim
         self._children = []
         self._tranFromParent = []
+        self.name = "v" + str(num)
+        self.applyed_acc = False
 
         self.num_of_omegas = np.count_nonzero(mark == float("inf"))
         tmp = np.where(mark != float("inf"), mark, 0)
@@ -47,6 +40,8 @@ class CovNode(object):
                 "The dimension of the node and its parent has to be the same"
         self.change_parent(parent)
         self.trans_to_fire = 0
+        # self._parent_merge = [self._parent]
+        # self._children_merge = []
 
     def get_dim(self):
         return self._dim
@@ -72,6 +67,7 @@ class CovNode(object):
 
         if self._parent is not None:
             self._parent.delete_child(self)
+        # self._parent_merge.remove(self._parent)
         self._parent = parent
         if parent is not None:
             if self not in parent.get_children():
@@ -91,11 +87,30 @@ class CovNode(object):
         """
         Creates all the successors of the node according to trans such that their marks are an anti-chain
         """
+        # children_mark = []
         for tran in trans:
+            # if all(self.marking >= tran._pre):
             if tran.is_fireable_from(self.marking):
+                # new_marking = self.marking + tran._incidence
                 new_marking = tran.apply_on_marking(self.marking)
+                # for child in self._children:
+                #     if all(new_marking <= child.marking):
+                #         print("here")
+                #         break
+                #     if all(child.marking <= new_marking):
+                #         print("here")
+                #         self._children.remove(child)
                 child = CovNode(new_marking, self._dim, self._depth + 1, self)
                 child.add_transition(tran)
+                # new_child_mark = deepcopy(self.marking)
+                # new_child_mark = tran.apply_on_marking(new_child_mark)
+
+                # children_mark.append((new_child_mark, tran))
+
+        # for (child_mark, tran) in children_mark:
+        #     child = CovNode(child_mark,
+        #                     self._dim, self._depth + 1, self)
+        #     child.add_transition(tran)
 
         return self._children
 
@@ -124,8 +139,20 @@ class CovNode(object):
     def get_transitions(self):
         return self._tranFromParent
 
+    def short_marking(self):
+        srt_mrk = ""
+        for i in range(len(self.marking)):
+            if self.marking[i] != 0:
+                if  self.marking[i] == float("inf"):
+                    token = "w"
+                else:
+                    token = str(int(self.marking[i]))
+                srt_mrk += " +" + token + "p_" + str(i)
+        return srt_mrk
+
     def __repr__(self):
-        rep = "marking: " + str(self.marking) + " \n num of children: "+ str(len(self._children)) + ", depth: "+ str(self._depth)
+        rep = "marking: " + str(self.marking) + " \n num of children: " + str(len(self._children)) + ", depth: " + str(
+            self._depth)
         return rep
 
     def __lt__(self, other):

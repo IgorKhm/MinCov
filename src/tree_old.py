@@ -1,18 +1,3 @@
-"""
-Copyright 2019 Igor Khmelnitsky, Alain Finkel, Serge Haddad
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-"""
 
 import heapq
 import time
@@ -143,7 +128,6 @@ class CovTreeHashTest:
     def delete_node(self, node: CovNode, delete_from_verSet=True):
         """
         Deletes a node.
-
         delete_from_verSet: sometimes we don't need to delete from verSet.
         """
         self.number_of_deleted_nodes += 1
@@ -160,7 +144,6 @@ class CovTreeHashTest:
     def _delete_descendants(self, node: CovNode):
         """
         Deletes all the descendants of a specific node
-
         Python has a limitation on the depth of recursion.
         Hence we do it with a loop instead of raising the
         limit recursion.
@@ -392,7 +375,7 @@ class CovTreeHashTest:
                 # if ((current_node.marking)[i] > b) & ((current_node.marking)[i] != float("inf")):
                 #     b= current_parent_node
                 # Begin - Code for performance #
-                if self.count % 10000 == 0:
+                if self.count % 1000 == 0:
                     if self.verbose:
                         print("---------------------")
                         print("V: %d" % len(self._vertices))
@@ -640,3 +623,5 @@ class CovTreeHashTest:
                     i = len(self._accelerations) - 1
                     self.use_of_acc += 1
             i -= 1
+
+

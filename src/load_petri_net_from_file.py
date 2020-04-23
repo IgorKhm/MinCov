@@ -1,17 +1,7 @@
 """
-Copyright 2019 Igor Khmelnitsky, Alain Finkel, Serge Haddad
+Created on Jul 10, 2019
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+@author: ikhmelnitsky
 """
 import re
 import xml.etree.ElementTree as ET
@@ -117,6 +107,7 @@ def add_initial_mark(data, places_indices, init):
     else:
         return ''
 
+
 def add_initial_target(data, places_indices, init):
     COMPARISONS = ['>=', '=']  # List order matters here.
     entries = data.split(',')
@@ -141,7 +132,8 @@ def add_initial_target(data, places_indices, init):
     else:
         return ''
 
-def load_petri_net_from_spec(filename, withTarget = False):
+
+def load_petri_net_from_spec(filename, withTarget=False):
     MODES = ['vars', 'rules', 'init', 'target', 'invariants']
     num_places = 0
     places = []
@@ -192,7 +184,70 @@ def load_petri_net_from_spec(filename, withTarget = False):
                 #                     print(init_mark)
                 # Target values
                 elif mode == MODES[3]:
-                    taracc= add_initial_target(taracc + data, places_indices, target)
+                    taracc = add_initial_target(taracc + data, places_indices, target)
+                    # print("")
+                    # currently don't care about the target
+
+    petri.mark_the_petri_net(init_mark)
+    if withTarget:
+        return petri, target
+    else:
+        return petri
+
+
+def load_petri_net_from_apt(filename):
+    MODES = ['.places', 'rules', 'init', 'target', 'invariants']
+    num_places = 0
+    places = []
+
+    with open(filename) as input_file:
+        places = 0
+        for row in input_file:
+            if row.strip() == MODES[0]:
+                data = (next(input_file)).strip()
+                num_places = len(data.split(' '))
+                break
+    petri = PetriNet(num_places)
+
+    with open(filename) as input_file:
+        mode = 'none'
+        rules_acc = ''
+        acc = ''
+        taracc = ''
+        init_mark = numpy.zeros(num_places)
+        target = numpy.zeros(num_places)
+
+        for row in input_file:
+            data = row.strip()
+
+            # Ignore empty/commented lines
+            if len(data) == 0 or data[0] == '#':
+                continue
+
+            if data in MODES:
+                mode = data
+                if mode == MODES[1]:
+                    places_indices = {value: key for key, value in
+                                      enumerate(places)}
+            else:
+                # Places
+                if mode == MODES[0]:
+                    places.extend(data.split(' '))
+                # Rules
+                elif mode == MODES[1]:
+                    rules_acc += data
+                    pos = rules_acc.find(';')
+
+                    if pos >= 0:
+                        add_transition(petri, places, rules_acc[:pos])
+                        rules_acc = rules_acc[pos + 1:]
+                # Initial values
+                elif mode == MODES[2]:
+                    acc = add_initial_mark(acc + data, places_indices, init_mark)
+                #                     print(init_mark)
+                # Target values
+                elif mode == MODES[3]:
+                    taracc = add_initial_target(taracc + data, places_indices, target)
                     # print("")
                     # currently don't care about the target
 
@@ -244,7 +299,7 @@ def load_petri_net_from_pnml(filename):
             incidence_transitions[t][p] += 1
 
     petri_net = PetriNet(dim)
-    petri_net.mark_the_petri_net(np.array(init_marking))
+    petri_net.mark_the_petri_net(OmegaMarking(np.array(init_marking)))
 
     for i in range(len(transitions_names)):
         petri_net.add_transition(OmegaTransition(pre_transitions[i], incidence_transitions[i]))

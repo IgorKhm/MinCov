@@ -153,4 +153,58 @@ def export_a_folder_to_valmari(origin_folder):
             else:
                 name = file.title()
             petri = load_petri_net_from_spec(folder[0] + "/" + file)
-            export_petri_to_valmari(petri, "benchmarks/valmari/"+name)
+            export_petri_to_valmari(petri, "benchmarks/valmari2/"+name)
+
+
+def export_petri_to_spec(petri_net: PetriNet, filename, write_initial_marking=False):
+    file = open(filename, "a")
+    place_names = []
+    for p in petri_net.get_places():
+        place_names.append("x" + str(p))
+
+    file.write("vars\n\t")
+    for place in place_names:
+        file.write(place + " ")
+
+    file.write("\n\nrules\n")
+    for tran in petri_net.get_transitions():
+        pre = tran.get_pre()
+        first = True
+        for p in petri_net.get_places():
+            if pre[p] > 0:
+                if first:
+                    file.write("\t")
+                else:
+                    file.write(" , ")
+                file.write(place_names[p] + " >= " + str(int(pre[p])))
+                first = False
+        file.write(" ->\n")
+        first = True
+        incidence = tran.get_incidence()
+        for p in petri_net.get_places():
+            if incidence[p] != 0:
+                if not first:
+                    file.write(",\n")
+                if incidence[p] > 0:
+                    file.write("\t\t" + place_names[p] + "' = " + place_names[p] + "+" + str(int(incidence[p])))
+                else:
+                    file.write("\t\t" + place_names[p] + "' = " + place_names[p] + "-" + str(int(incidence[p]) * (-1)))
+                first = False
+        file.write(";\n\n")
+    if not write_initial_marking:
+        file.close()
+        return
+
+    file.write("init\n\t")
+    first = True
+    init_mark = (petri_net.get_mark())
+    for p in petri_net.get_places():
+        if not first:
+            file.write(" , ")
+        if init_mark[p] == float("inf"):
+            file.write(place_names[p] + " >= 1")
+        else:
+            file.write(place_names[p] + " = " + str(int(init_mark[p])))
+        first = False
+    file.close()
+

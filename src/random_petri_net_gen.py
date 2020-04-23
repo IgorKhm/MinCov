@@ -1,17 +1,7 @@
 """
-Copyright 2019 Igor Khmelnitsky, Alain Finkel, Serge Haddad
+Created on Jul 10, 2019
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+@author: ikhmelnitsky
 """
 import csv
 import datetime
@@ -20,13 +10,15 @@ import smtplib
 import ssl
 import time
 import uuid
-from copy import deepcopy
+from copy import copy
 
 import numpy as np
+from z3 import z3
+
+from export_petri_net import export_petri_to_spec
 from omega_transition import OmegaTransition
 from performance import run_benchmark, Benchmark, write_benchmark_csv
 from petri_net import PetriNet
-from z3 import z3
 
 
 def random_petri_net():
@@ -60,69 +52,17 @@ def random_petri_net():
     return petri_net
 
 
-def export_petri_to_spec(petri_net: PetriNet, filename, write_initial_marking=False):
-    file = open(filename, "a")
-    place_names = []
-    for p in petri_net.get_places():
-        place_names.append("x" + str(p))
-
-    file.write("vars\n\t")
-    for place in place_names:
-        file.write(place + " ")
-
-    file.write("\n\nrules\n")
-    for tran in petri_net.get_transitions():
-        pre = tran.get_pre()
-        first = True
-        for p in petri_net.get_places():
-            if pre[p] > 0:
-                if first:
-                    file.write("\t")
-                else:
-                    file.write(" , ")
-                file.write(place_names[p] + " >= " + str(int(pre[p])))
-                first = False
-        file.write(" ->\n")
-        first = True
-        incidence = tran.get_incidence()
-        for p in petri_net.get_places():
-            if incidence[p] != 0:
-                if not first:
-                    file.write(",\n")
-                if incidence[p] > 0:
-                    file.write("\t\t" + place_names[p] + "' = " + place_names[p] + "+" + str(int(incidence[p])))
-                else:
-                    file.write("\t\t" + place_names[p] + "' = " + place_names[p] + "-" + str(int(incidence[p]) * (-1)))
-                first = False
-        file.write(";\n\n")
-    if not write_initial_marking:
-        file.close()
-        return
-
-    file.write("init\n\t")
-    first = True
-    init_mark = (petri_net.get_mark())
-    for p in petri_net.get_places():
-        if not first:
-            file.write(" , ")
-        if init_mark[p] == float("inf"):
-            file.write(place_names[p] + " >= 1")
-        else:
-            file.write(place_names[p] + " = " + str(int(init_mark[p])))
-        first = False
-    file.close()
-
-
 fieldnames = ['Name', '#transitions', '#places', '#Max vertices', '#Final vertices', '#Max acc', '#Final acc',
               '#Accs reused', 'Time']
 
 
 def generate_petri_nets():
     init_time = time.time()
+    time_to_finish = 60 * 60 * 24
 
-    num_of_petri_nets = 200
+    num_of_petri_nets = 100
     num_of_init_markings = 5
-    time_out = 900
+    time_out = 1800
     file_name_petri = "/petri_net"
     timestamp_str = datetime.datetime.now().strftime("%d-%b-%Y_%H-%M-%S")
     dir_run = "benchmarks/random_petri_nets/run-" + timestamp_str + "/"
@@ -135,7 +75,6 @@ def generate_petri_nets():
         writer.writeheader()
 
     while num_of_petri_nets > 0:
-        petrinet_ran = False
         petri = PetriNet(1)
         while (petri.get_dim() < 10) | is_petri_stractually_bounded(petri):
             if is_petri_stractually_bounded(petri) & (petri.get_dim() > 10):
@@ -147,8 +86,9 @@ def generate_petri_nets():
                     biggest_connected_component = connected_component
             petri = projection_of_petri_on_places(petri, biggest_connected_component)
 
+        uniq_id = str(uuid.uuid1())
         dir_for_petri = dir_run + "/" "_p_" + str(petri.get_dim()) + "_t_" + str(
-            len(petri.get_transitions())) + "_d_" + timestamp_str + "_" + str(num_of_petri_nets)
+            len(petri.get_transitions())) + "_d_" + timestamp_str + "_" + uniq_id
         os.makedirs(dir_for_petri)
 
         benchmark = Benchmark("empty")
@@ -156,7 +96,7 @@ def generate_petri_nets():
         current_try = 0
         benchmark.max_vertices = 0
         benchmark.timeout = False
-        while benchmark.max_vertices < 50:
+        while (benchmark.max_vertices < 1000) & (benchmark.time < 0.8):
             current_try += 1
             marking = np.zeros(petri.get_dim())
             # max_norm = petri.get_dim() / 2
@@ -164,31 +104,39 @@ def generate_petri_nets():
             for p in range(norm_of_init_marking):
                 marking[np.random.randint(0, int(petri.get_dim() - 1))] += 1
             init_mark = marking
-            id = str(uuid.uuid1())
-            petri_name = file_name_petri + id + ".spec"
-            benchmark = run_benchmark(petri_name, petri, time_out, init_mark,False)
+            uniq_id = str(uuid.uuid1())
+            petri_name = file_name_petri + uniq_id + ".spec"
+            benchmark, cov = run_benchmark(petri_name, petri, time_out, init_mark, True)
             if current_try > max_num_of_tries:
                 break
+
         if current_try > max_num_of_tries:
+            if time.time() - init_time > time_to_finish:
+                break
             continue
 
-        print("write")
         petri.mark_the_petri_net(init_mark)
         export_petri_to_spec(petri, dir_for_petri + petri_name, True)
         benchmark.init_mark = init_mark
         write_benchmark_csv(benchmark, file_for_benchmark, time_out, False)
-        benchmarks.append(deepcopy(benchmark))
+        benchmarks.append(copy(benchmark))
         num_of_petri_nets -= 1
-    summary_of_rand_run(benchmarks, dir_run)
+        if time.time() - init_time > time_to_finish:
+            break
+        if len(benchmarks) % 100 == 0:
+            sendEmail("Subject: partial \n\n " + " number of Petri nets done: " + str(len(benchmarks)))
+    sendEmail("Subject: Done \n\n " + summary_of_rand_run(benchmarks, dir_run))
 
+
+def sendEmail(summary):
     port = 465  # For SSL
     # Create a secure SSL context
     context = ssl.create_default_context()
-
+    print(summary)
     with smtplib.SMTP_SSL("smtp.gmail.com", port, context=context) as server:
-        server.login("igor.mail.servies@gmail.com", "@think1964")
+        server.login("igor.mail.servies@gmail.com", "toFill")
         # TODO: Send email here
-        server.sendmail("igor.mail.servies@gmail.com", "igor.khme@gmail.com", "Subject: Done")
+        server.sendmail("igor.mail.servies@gmail.com", "igor.khme@gmail.com", summary)
 
 
 def is_petri_stractually_bounded(petri: PetriNet):
@@ -237,6 +185,7 @@ def summary_of_rand_run(benchmarks, dir_run):
     total_max_accelerations = 0
     total_accelerations_used = 0
     total_time_out = 0
+    summary = ""
     for benchmark in benchmarks:
         if not benchmark.timeout:
             total_time += benchmark.time
@@ -249,18 +198,24 @@ def summary_of_rand_run(benchmarks, dir_run):
             total_time_out += 1
     f = open(dir_run + "summary", "a")
 
-    f.write("--------------------------------------\n")
-    f.write("Summary of this random batch:\n")
-    f.write("--------------------------------------\n\n")
-    f.write("Num of benchmarks: %d \n" % len(benchmarks))
-    f.write("Total time: %f \n" % total_time)
-    f.write("Num of benchmarks timeout: %d \n" % total_time_out)
-    f.write("Total num of maximum Vertices : %d \n" % total_max_vertices)
-    f.write("Total num of maximum accelerations : %d \n" % total_max_accelerations)
-    f.write("Total num of accelerations used : %d \n" % total_accelerations_used)
-    f.write("Total num of final accelerations : %d \n" % total_final_accelerations)
-    f.write("Total num of final vertices : %d \n" % total_final_vertices)
+    def writeboth(file, summarytext: str, massage: str):
+        file.write(massage)
+        return summarytext + massage
+
+    summary = writeboth(f, summary, "--------------------------------------\n")
+    summary = writeboth(f, summary, "Summary of this random batch:\n")
+    summary = writeboth(f, summary, "--------------------------------------\n\n")
+    summary = writeboth(f, summary, "Num of benchmarks: %d \n" % len(benchmarks))
+    summary = writeboth(f, summary, "Total time: %f \n" % total_time)
+    summary = writeboth(f, summary, "Num of benchmarks timeout: %d \n" % total_time_out)
+    summary = writeboth(f, summary, "Total num of maximum Vertices : %d \n" % total_max_vertices)
+    summary = writeboth(f, summary, "Total num of maximum accelerations : %d \n" % total_max_accelerations)
+    summary = writeboth(f, summary, "Total num of accelerations used : %d \n" % total_accelerations_used)
+    summary = writeboth(f, summary, "Total num of final accelerations : %d \n" % total_final_accelerations)
+    summary = writeboth(f, summary, "Total num of final vertices : %d \n" % total_final_vertices)
     f.close()
+
+    return summary
 
 
 def all_connected_components(petri: PetriNet):
