@@ -277,7 +277,7 @@ def load_petri_net_from_pnml(filename):
             init_marking.append(0)
         else:
             i = init.find("{http://www.pnml.org/version-2009/grammar/pnml}text").text
-            init_marking.append(int(i))
+            init_marking.append(float(i))
 
     dim = len(places_names)
 
@@ -299,7 +299,9 @@ def load_petri_net_from_pnml(filename):
             incidence_transitions[t][p] += 1
 
     petri_net = PetriNet(dim)
-    petri_net.mark_the_petri_net(OmegaMarking(np.array(init_marking)))
+    # petri_net.mark_the_petri_net(OmegaMarking(np.array(init_marking)))
+    petri_net.mark_the_petri_net(np.array(init_marking))
+
 
     for i in range(len(transitions_names)):
         petri_net.add_transition(OmegaTransition(pre_transitions[i], incidence_transitions[i]))
